@@ -1,3 +1,5 @@
+#include <Windows.h>
+#include <ShellScalingApi.h>
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -5,11 +7,19 @@
 
 int main()
 {
+    // Fix DPI awaareness first
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
     // Initialize GLFW
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // Get DPI scale before creating window
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    float xscale, yscale;
+    glfwGetMonitorContentScale(monitor, &xscale, &yscale);
 
     GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui + Docking", nullptr, nullptr);
     glfwMakeContextCurrent(window);
@@ -24,6 +34,10 @@ int main()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Optional: multi-viewport
+
+    // Apply DPI scaling
+    io.FontGlobalScale = xscale;
+    ImGui::GetStyle().ScaleAllSizes(xscale);
 
     ImGui::StyleColorsDark();
 
