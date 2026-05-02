@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="IMGuiTool.vcxproj" />
+  <Project Path="IMGuiTool.vcxproj" Id="8286040e-7738-4169-a080-b84b3c1d1854" />
 </Solution>
