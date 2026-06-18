@@ -86,10 +86,17 @@ endif()
 add_executable(IMGuiTool WIN32 IMGuiTool/main.cpp)   # WIN32 -> GUI subsystem / WinMain
 target_link_libraries(IMGuiTool PRIVATE imgui)
 
-# Static runtime for GNU-style frontends (MinGW GCC, Clang GNU driver).
+# Static runtime for GNU-style frontends (MinGW GCC, Clang GNU driver, Linux).
 if(IMGUITOOL_STATIC_RUNTIME
    AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
         OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
             AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")))
-  target_link_options(IMGuiTool PRIVATE -static -static-libgcc -static-libstdc++)
+  if(WIN32)
+    # MinGW: link the whole runtime (libstdc++, libgcc, winpthread) statically.
+    target_link_options(IMGuiTool PRIVATE -static -static-libgcc -static-libstdc++)
+  else()
+    # Linux/Unix: static libstdc++/libgcc only. A full -static breaks against
+    # X11/Wayland/glibc, so the system C library stays dynamic.
+    target_link_options(IMGuiTool PRIVATE -static-libgcc -static-libstdc++)
+  endif()
 endif()

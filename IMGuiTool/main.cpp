@@ -1,9 +1,12 @@
+#ifdef _WIN32
 #include <Windows.h>
 #include <tchar.h>
+#include "imgui_impl_win32.h"
+#endif
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include "imgui_impl_win32.h"
 #include <GLFW/glfw3.h>
 
 namespace ImGui
@@ -15,16 +18,9 @@ namespace ImGui
     void Cleanup(void);
 }
 
-int WINAPI _tWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPTSTR lpCmdLine, _In_ int nShowCmd)
+// Platform-agnostic application body. Entry points below dispatch into this.
+static int RunApp(void)
 {
-    UNREFERENCED_PARAMETER(hInstance);
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
-    UNREFERENCED_PARAMETER(nShowCmd);
-
-    // Fix DPI awaareness first
-    ImGui_ImplWin32_EnableDpiAwareness();
-
     // Initialize GLFW
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -51,7 +47,7 @@ int WINAPI _tWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
         // Draw
         ImGui::DrawFrame();
-        
+
         // End ImGui frame
         ImGui::EndFrame(window);
     }
@@ -63,6 +59,26 @@ int WINAPI _tWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
     return 0;
 }
+
+#ifdef _WIN32
+int WINAPI _tWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPTSTR lpCmdLine, _In_ int nShowCmd)
+{
+    UNREFERENCED_PARAMETER(hInstance);
+    UNREFERENCED_PARAMETER(hPrevInstance);
+    UNREFERENCED_PARAMETER(lpCmdLine);
+    UNREFERENCED_PARAMETER(nShowCmd);
+
+    // Fix DPI awareness first (Win32-only; other platforms scale via GLFW content scale)
+    ImGui_ImplWin32_EnableDpiAwareness();
+
+    return RunApp();
+}
+#else
+int main(void)
+{
+    return RunApp();
+}
+#endif
 
 namespace ImGui
 {
