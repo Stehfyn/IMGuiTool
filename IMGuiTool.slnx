@@ -4,4 +4,5 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="IMGuiTool\IMGuiTool.vcxproj" Id="8286040e-7738-4169-a080-b84b3c1d1854" />
+  <Project Path="external\glfw.vcxproj" Id="b7e5f4a2-9c3d-4e1b-8f6a-2d5c7e9a1b3f" />
 </Solution>
