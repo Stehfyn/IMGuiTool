@@ -1,9 +1,14 @@
 # IMGuiTool
 
-Native Windows [Dear ImGui](https://github.com/ocornut/imgui) app (GLFW + OpenGL3). Dependencies are submodules, built from source as static libs.
+Native Windows [Dear ImGui](https://github.com/ocornut/imgui) app (GLFW + OpenGL3). Dependencies are submodules, built from source as static libs. Builds with **MSVC**, **Clang**, or **MinGW-w64 GCC**; CMake is the single source of truth.
 
-## How to build (Visual Studio)
-- `Visual Studio 2026` with **Desktop development with C++** (projects target the `v145` toolset).
+## How to build (CMake)
+Requirements:
+- `CMake` 3.21+ and a generator (`Ninja` recommended; the VS generator also works).
+- One of: MSVC (`Visual Studio 2026`, Desktop C++), `clang-cl`/`clang`, or MinGW-w64 `gcc`.
+- `Git` (dependencies are submodules).
+
+The runtime is linked **statically** by default (`/MT` on MSVC/clang-cl, `-static-lib*` on GNU). Disable with `-D IMGUITOOL_STATIC_RUNTIME=OFF`.
 
 ### Build Steps
 Clone with submodules:
@@ -15,10 +20,15 @@ Or, if already cloned:
 cd IMGuiTool
 git submodule update --init --recursive
 ```
-Open `IMGuiTool.slnx` and build (`Platform`: `x64`/`x86`, `Configuration`: `Debug`/`Release`).
-
-Or via `Developer Command Prompt for VS`:
+Configure and build with a preset (`msvc`, `clang-cl`, `mingw`, or `vs`):
 ```bash
-cd IMGuiTool
-msbuild /m /p:Configuration=Release /p:Platform=x64 IMGuiTool.slnx
+cmake --preset msvc
+cmake --build --preset msvc-release
+```
+The executable lands in `build/<preset>/<Config>/IMGuiTool.exe`.
+
+Without presets, any generator works the same way:
+```bash
+cmake -S . -B build -G Ninja -D CMAKE_BUILD_TYPE=Release
+cmake --build build
 ```

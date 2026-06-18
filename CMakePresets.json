@@ -1,0 +1,47 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": { "IMGUITOOL_STATIC_RUNTIME": "ON" }
+    },
+    {
+      "name": "msvc",
+      "displayName": "MSVC (Ninja Multi-Config)",
+      "inherits": "base",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": { "CMAKE_C_COMPILER": "cl", "CMAKE_CXX_COMPILER": "cl" }
+    },
+    {
+      "name": "clang-cl",
+      "displayName": "Clang-cl (Ninja Multi-Config)",
+      "inherits": "base",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": { "CMAKE_C_COMPILER": "clang-cl", "CMAKE_CXX_COMPILER": "clang-cl" }
+    },
+    {
+      "name": "mingw",
+      "displayName": "MinGW-w64 GCC (Ninja Multi-Config)",
+      "inherits": "base",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": { "CMAKE_C_COMPILER": "gcc", "CMAKE_CXX_COMPILER": "g++" }
+    },
+    {
+      "name": "vs",
+      "displayName": "Visual Studio 2026 (x64)",
+      "inherits": "base",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64"
+    }
+  ],
+  "buildPresets": [
+    { "name": "msvc-debug",     "configurePreset": "msvc",     "configuration": "Debug" },
+    { "name": "msvc-release",   "configurePreset": "msvc",     "configuration": "Release" },
+    { "name": "clang-cl-release","configurePreset": "clang-cl", "configuration": "Release" },
+    { "name": "mingw-release",  "configurePreset": "mingw",    "configuration": "Release" },
+    { "name": "vs-release",     "configurePreset": "vs",       "configuration": "Release" }
+  ]
+}
