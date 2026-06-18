@@ -7,11 +7,11 @@
 
 namespace ImGui
 {
-    void Init(GLFWwindow* window, float xscale);
+    void Init(GLFWwindow* window, float main_scale);
     void BeginFrame(void);
     void DrawFrame(void);
     void EndFrame(GLFWwindow* window);
-    void Shutdown(void);
+    void Cleanup(void);
 }
 
 int main()
@@ -25,17 +25,15 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    // Create window with graphics context
     // Get DPI scale before creating window
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    float xscale, yscale;
-    glfwGetMonitorContentScale(monitor, &xscale, &yscale);
-
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Dear ImGui + Docking", nullptr, nullptr);
+    float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
+    GLFWwindow* window = glfwCreateWindow((int)(1280 * main_scale), (int)(800 * main_scale), "Dear ImGui + Docking", nullptr, nullptr);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
     // Setup Dear ImGui context
-    ImGui::Init(window, xscale);
+    ImGui::Init(window, main_scale);
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -53,7 +51,7 @@ int main()
     }
 
     // Cleanup
-    ImGui::Shutdown();
+    ImGui::Cleanup();
     glfwDestroyWindow(window);
     glfwTerminate();
 
@@ -62,7 +60,7 @@ int main()
 
 namespace ImGui
 {
-    void Init(GLFWwindow* window, float xscale)
+    void Init(GLFWwindow* window, float main_scale)
     {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -74,8 +72,10 @@ namespace ImGui
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Optional: multi-viewport
 
         // Apply DPI scaling
-        io.FontGlobalScale = xscale;
-        ImGui::GetStyle().ScaleAllSizes(xscale);
+        io.FontGlobalScale = main_scale;
+        ImGui::GetStyle().ScaleAllSizes(main_scale);
+        io.ConfigDpiScaleFonts = true;          // [Experimental] Automatically overwrite style.FontScaleDpi in Begin() when Monitor DPI changes. This will scale fonts but _NOT_ scale sizes/padding for now.
+        io.ConfigDpiScaleViewports = true;      // [Experimental] Scale Dear ImGui and Platform Windows when Monitor DPI changes.
 
         ImGui::StyleColorsDark();
 
@@ -87,6 +87,7 @@ namespace ImGui
           style.WindowRounding = 0.0f;
           style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
+        style.FontScaleDpi = main_scale;
 
         // Initialize backends
         ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -136,10 +137,10 @@ namespace ImGui
         glfwSwapBuffers(window);
     }
 
-    void Shutdown(void)
+    void Cleanup(void)
     {
-      ImGui_ImplOpenGL3_Shutdown();
-      ImGui_ImplGlfw_Shutdown();
-      ImGui::DestroyContext();
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
     }
 }
