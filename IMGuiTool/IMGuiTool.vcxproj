@@ -81,7 +81,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -98,7 +98,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -113,7 +113,7 @@
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)..\external\glfw-3.4.bin.WIN64\lib-vc2022</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3_mt.lib;opengl32.lib;gdi32.lib;user32.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -132,7 +132,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)..\external\glfw-3.4.bin.WIN64\lib-vc2022</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3_mt.lib;opengl32.lib;gdi32.lib;user32.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -144,7 +144,7 @@
   <ItemGroup>
     <ClCompile Include="$(ProjectDir)\..\external\imgui\backends\imgui_impl_glfw.cpp" />
     <ClCompile Include="$(ProjectDir)\..\external\imgui\backends\imgui_impl_opengl3.cpp" />
-	<ClCompile Include="$(ProjectDir)\..\external\imgui\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="$(ProjectDir)\..\external\imgui\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="$(ProjectDir)\..\external\imgui\imgui.cpp" />
     <ClCompile Include="$(ProjectDir)\..\external\imgui\imgui_demo.cpp" />
     <ClCompile Include="$(ProjectDir)\..\external\imgui\imgui_draw.cpp" />
