@@ -7,8 +7,11 @@
 
 namespace ImGui
 {
+    void Init(GLFWwindow* window, float xscale);
     void BeginFrame(void);
+    void DrawFrame(void);
     void EndFrame(GLFWwindow* window);
+    void Shutdown(void);
 }
 
 int main()
@@ -32,33 +35,7 @@ int main()
     glfwSwapInterval(1); // Enable vsync
 
     // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-
-    // Enable Docking (requires docking branch!)
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Optional: multi-viewport
-
-    // Apply DPI scaling
-    io.FontGlobalScale = xscale;
-    ImGui::GetStyle().ScaleAllSizes(xscale);
-
-    ImGui::StyleColorsDark();
-
-    // When viewports are enabled, tweak WindowRounding so platform
-    // windows look identical to regular ones
-    ImGuiStyle& style = ImGui::GetStyle();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-    {
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
-
-    // Initialize backends
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 330");
+    ImGui::Init(window, xscale);
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -68,23 +45,15 @@ int main()
         // Start ImGui frame
         ImGui::BeginFrame();
 
-        // Enable full-screen dockspace (optional but common pattern)
-        ImGui::DockSpaceOverViewport();
-
-        // Your windows go here
-        ImGui::ShowDemoWindow();
-
-        // Render
-        ImGui::Render();
+        // Draw
+        ImGui::DrawFrame();
         
         // End ImGui frame
         ImGui::EndFrame(window);
     }
 
     // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    ImGui::Shutdown();
     glfwDestroyWindow(window);
     glfwTerminate();
 
@@ -93,6 +62,37 @@ int main()
 
 namespace ImGui
 {
+    void Init(GLFWwindow* window, float xscale)
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+
+        // Enable Docking (requires docking branch!)
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Optional: multi-viewport
+
+        // Apply DPI scaling
+        io.FontGlobalScale = xscale;
+        ImGui::GetStyle().ScaleAllSizes(xscale);
+
+        ImGui::StyleColorsDark();
+
+        // When viewports are enabled, tweak WindowRounding so platform
+        // windows look identical to regular ones
+        ImGuiStyle& style = ImGui::GetStyle();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+          style.WindowRounding = 0.0f;
+          style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+        }
+
+        // Initialize backends
+        ImGui_ImplGlfw_InitForOpenGL(window, true);
+        ImGui_ImplOpenGL3_Init("#version 330");
+    }
+
     void BeginFrame(void)
     {
         ImGui_ImplOpenGL3_NewFrame();
@@ -100,11 +100,23 @@ namespace ImGui
         ImGui::NewFrame();
     }
 
+    void DrawFrame(void)
+    {
+        // Enable full-screen dockspace (optional but common pattern)
+        ImGui::DockSpaceOverViewport();
+
+        // Your windows go here
+        ImGui::ShowDemoWindow();
+    }
+
     void EndFrame(GLFWwindow* window)
     {
         int display_w;
         int display_h;
         const ImGuiIO& io = ImGui::GetIO();
+
+        // Render
+        ImGui::Render();
 
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
@@ -122,5 +134,12 @@ namespace ImGui
         }
 
         glfwSwapBuffers(window);
+    }
+
+    void Shutdown(void)
+    {
+      ImGui_ImplOpenGL3_Shutdown();
+      ImGui_ImplGlfw_Shutdown();
+      ImGui::DestroyContext();
     }
 }
