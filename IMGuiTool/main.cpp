@@ -5,6 +5,12 @@
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
 
+namespace ImGui
+{
+    void BeginFrame(void);
+    void EndFrame(GLFWwindow* window);
+}
+
 int main()
 {
     // Fix DPI awaareness first
@@ -60,9 +66,7 @@ int main()
         glfwPollEvents();
 
         // Start ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        ImGui::BeginFrame();
 
         // Enable full-screen dockspace (optional but common pattern)
         ImGui::DockSpaceOverViewport();
@@ -72,7 +76,36 @@ int main()
 
         // Render
         ImGui::Render();
-        int display_w, display_h;
+        
+        // End ImGui frame
+        ImGui::EndFrame(window);
+    }
+
+    // Cleanup
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    glfwDestroyWindow(window);
+    glfwTerminate();
+
+    return 0;
+}
+
+namespace ImGui
+{
+    void BeginFrame(void)
+    {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+    }
+
+    void EndFrame(GLFWwindow* window)
+    {
+        int display_w;
+        int display_h;
+        const ImGuiIO& io = ImGui::GetIO();
+
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -90,13 +123,4 @@ int main()
 
         glfwSwapBuffers(window);
     }
-
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    glfwDestroyWindow(window);
-    glfwTerminate();
-
-    return 0;
 }
