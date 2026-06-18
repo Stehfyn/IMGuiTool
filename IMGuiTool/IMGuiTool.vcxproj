@@ -142,19 +142,14 @@
     <None Include=".gitignore" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(ProjectDir)\..\external\imgui\backends\imgui_impl_glfw.cpp" />
-    <ClCompile Include="$(ProjectDir)\..\external\imgui\backends\imgui_impl_opengl3.cpp" />
-    <ClCompile Include="$(ProjectDir)\..\external\imgui\backends\imgui_impl_win32.cpp" />
-    <ClCompile Include="$(ProjectDir)\..\external\imgui\imgui.cpp" />
-    <ClCompile Include="$(ProjectDir)\..\external\imgui\imgui_demo.cpp" />
-    <ClCompile Include="$(ProjectDir)\..\external\imgui\imgui_draw.cpp" />
-    <ClCompile Include="$(ProjectDir)\..\external\imgui\imgui_tables.cpp" />
-    <ClCompile Include="$(ProjectDir)\..\external\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\external\glfw.vcxproj">
       <Project>{b7e5f4a2-9c3d-4e1b-8f6a-2d5c7e9a1b3f}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\external\imgui.vcxproj">
+      <Project>{c8f6a1d2-3e4b-5c6a-9d7e-1f2a3b4c5d6e}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
