@@ -1,5 +1,7 @@
 # IMGuiTool
 
+[![CI](https://github.com/Stehfyn/IMGuiTool/actions/workflows/ci.yml/badge.svg)](https://github.com/Stehfyn/IMGuiTool/actions/workflows/ci.yml)
+
 Cross-platform [Dear ImGui](https://github.com/ocornut/imgui) app (GLFW + OpenGL3). Runs on **Windows** and **Linux**. Dependencies are submodules, built from source as static libs. Builds with **MSVC**, **Clang/clang-cl**, **MinGW-w64 GCC** (Windows) or **GCC/Clang** (Linux); CMake is the single source of truth.
 
 ## How to build (CMake)

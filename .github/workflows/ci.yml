@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---------------- Linux ----------------
+          - { name: linux-gcc-ninja,    os: ubuntu-latest, kind: preset, preset: linux-gcc,   build_preset: linux-gcc-release }
+          - { name: linux-clang-ninja,  os: ubuntu-latest, kind: preset, preset: linux-clang, build_preset: linux-clang-release }
+          - { name: linux-gcc-make,     os: ubuntu-latest, kind: raw,    generator: "Unix Makefiles", cc: gcc, cxx: g++ }
+          # ---------------- Windows ----------------
+          - { name: windows-msvc-ninja,    os: windows-latest, kind: preset, preset: msvc,     build_preset: msvc-release,     msvc_env: true }
+          - { name: windows-clang-cl-ninja,os: windows-latest, kind: preset, preset: clang-cl, build_preset: clang-cl-release, msvc_env: true }
+          - { name: windows-mingw-ninja,   os: windows-latest, kind: preset, preset: mingw,    build_preset: mingw-release }
+          - { name: windows-msvc-msbuild,  os: windows-latest, kind: raw,    generator: "Visual Studio 17 2022" }
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build pkg-config \
+            libgl1-mesa-dev xorg-dev libxkbcommon-dev \
+            libwayland-dev wayland-protocols
+          if [ "${{ matrix.cxx }}" = "clang++" ] || [ "${{ matrix.preset }}" = "linux-clang" ]; then
+            sudo apt-get install -y clang
+          fi
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows' && matrix.kind == 'preset'
+        run: choco install ninja -y --no-progress
+
+      - name: Set up MSVC environment
+        if: matrix.msvc_env == true
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure (preset)
+        if: matrix.kind == 'preset'
+        shell: bash
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build (preset)
+        if: matrix.kind == 'preset'
+        shell: bash
+        run: cmake --build --preset ${{ matrix.build_preset }}
+
+      - name: Configure (raw)
+        if: matrix.kind == 'raw'
+        shell: bash
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          gen="${{ matrix.generator }}"
+          args=(-S . -B build -G "$gen" -D CMAKE_BUILD_TYPE=Release)
+          case "$gen" in "Visual Studio"*) args+=(-A x64) ;; esac
+          cmake "${args[@]}"
+
+      - name: Build (raw)
+        if: matrix.kind == 'raw'
+        shell: bash
+        run: cmake --build build --config Release --parallel
+
+      - name: Verify binary exists
+        shell: bash
+        run: |
+          set -e
+          if [ "${{ runner.os }}" = "Windows" ]; then exe="IMGuiTool.exe"; else exe="IMGuiTool"; fi
+          found=$(find build -name "$exe" -type f | head -1)
+          if [ -z "$found" ]; then echo "::error::$exe not produced"; find build -name 'IMGuiTool*'; exit 1; fi
+          echo "Built: $found"
+          ls -la "$found"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IMGuiTool-${{ matrix.name }}
+          path: |
+            build/**/IMGuiTool
+            build/**/IMGuiTool.exe
+          if-no-files-found: error
+          retention-days: 7
