@@ -51,10 +51,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build pkg-config \
-            libgl1-mesa-dev xorg-dev libxkbcommon-dev \
-            libwayland-dev wayland-protocols
-          [ "$PRESET" = linux-clang ] && sudo apt-get install -y clang || true
+            $(cat scripts/packages.txt) $([ "$PRESET" = linux-clang ] && echo clang)
 
       - name: Install Ninja (Windows / macOS)
         if: matrix.kind == 'preset' && runner.os != 'Linux'
