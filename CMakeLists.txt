@@ -1,31 +1,45 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(IMGuiTool LANGUAGES C CXX)
+project(IMGuiTool
+  VERSION     0.1.0
+  DESCRIPTION "Cross-platform Dear ImGui app (GLFW + OpenGL3)"
+  LANGUAGES   C CXX
+)
 
 # --------------------------------------------------------------------------
-# Global settings
+# Project-level guards & conveniences (only when built standalone, so the
+# project stays embeddable via add_subdirectory / FetchContent).
 # --------------------------------------------------------------------------
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+if(PROJECT_IS_TOP_LEVEL)
+  if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "In-source builds are not allowed. Use a separate build dir, e.g. `cmake -B build`.")
+  endif()
 
-# Default to Release for single-config generators (Ninja, Makefiles).
-get_property(_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(NOT _multi_config AND NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+  set(CMAKE_CXX_EXTENSIONS OFF)
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # tooling (clangd, etc.)
+  set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+  # Default to Release for single-config generators (Ninja, Makefiles).
+  get_property(_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+  if(NOT _multi_config AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+  endif()
 endif()
 
-# Match the old MSBuild project (CharacterSet=Unicode): makes _tWinMain
-# resolve to wWinMain and TCHAR map to wide on all Windows toolchains.
-if(WIN32)
-  add_compile_definitions(UNICODE _UNICODE)
-endif()
+# Verify submodules are present before referencing them.
+foreach(_sm IN ITEMS external/glfw/CMakeLists.txt external/imgui/imgui.cpp)
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_sm}")
+    message(FATAL_ERROR
+      "Missing dependency '${_sm}'. Initialize submodules:\n"
+      "  git submodule update --init --recursive")
+  endif()
+endforeach()
 
 # --------------------------------------------------------------------------
-# Static runtime  (toolchain-agnostic equivalent of /MT,/MTd)
-#   MSVC / clang-cl  -> static CRT via CMAKE_MSVC_RUNTIME_LIBRARY (CMP0091)
-#   GCC / Clang(GNU) -> -static-libgcc/-static-libstdc++ (+winpthread) on app
+# Static runtime — toolchain-agnostic equivalent of MSVC /MT,/MTd.
+#   MSVC / clang-cl   : static CRT via CMAKE_MSVC_RUNTIME_LIBRARY (CMP0091).
+#   GCC / Clang (GNU) : static libstdc++/libgcc on the executable (see below).
 # --------------------------------------------------------------------------
 option(IMGUITOOL_STATIC_RUNTIME "Link the C/C++ runtime statically" ON)
 
@@ -34,23 +48,23 @@ if(IMGUITOOL_STATIC_RUNTIME AND MSVC)
 endif()
 
 # --------------------------------------------------------------------------
-# GLFW  (submodule, built from source). Its own CMake honours
+# GLFW (submodule). Build only the library; it honours
 # CMAKE_MSVC_RUNTIME_LIBRARY, so the static CRT propagates automatically.
 # --------------------------------------------------------------------------
 set(GLFW_BUILD_DOCS     OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL        OFF CACHE BOOL "" FORCE)
-add_subdirectory(external/glfw)
+add_subdirectory(external/glfw EXCLUDE_FROM_ALL)
 
 # --------------------------------------------------------------------------
-# OpenGL
+# OpenGL (prefer the modern GLVND libraries on Linux).
 # --------------------------------------------------------------------------
 set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 
 # --------------------------------------------------------------------------
-# Dear ImGui  (submodule, no upstream CMake -> we own the target)
+# Dear ImGui (submodule, no upstream CMake -> we own this target).
 # --------------------------------------------------------------------------
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
 
@@ -63,30 +77,35 @@ add_library(imgui STATIC
   ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
   ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
+add_library(imgui::imgui ALIAS imgui)
 
-target_include_directories(imgui PUBLIC
+target_include_directories(imgui SYSTEM PUBLIC
   ${IMGUI_DIR}
   ${IMGUI_DIR}/backends
 )
-
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
-target_compile_features(imgui PUBLIC cxx_std_20)
+target_compile_features(imgui PUBLIC cxx_std_11)   # ImGui's real floor
 
 if(WIN32)
   target_sources(imgui PRIVATE ${IMGUI_DIR}/backends/imgui_impl_win32.cpp)
-  # imgui_impl_win32 pulls in DWM/IME/GDI. MSVC links these via
-  # #pragma comment(lib,...); GCC/Clang-GNU ignore that pragma, so link
-  # them explicitly to keep all three toolchains equivalent.
+  # CharacterSet=Unicode equivalent: makes TCHAR/_tWinMain resolve wide.
+  # PUBLIC so the executable's _tWinMain sees it too.
+  target_compile_definitions(imgui PUBLIC UNICODE _UNICODE)
+  # imgui_impl_win32 uses DWM/IME/GDI. MSVC pulls these via
+  # #pragma comment(lib,...); GCC/Clang-GNU ignore that, so link explicitly.
   target_link_libraries(imgui PUBLIC gdi32 user32 shell32 imm32 dwmapi)
 endif()
 
-# --------------------------------------------------------------------------
-# Application
-# --------------------------------------------------------------------------
-add_executable(IMGuiTool WIN32 IMGuiTool/main.cpp)   # WIN32 -> GUI subsystem / WinMain
-target_link_libraries(IMGuiTool PRIVATE imgui)
+set_target_properties(imgui glfw PROPERTIES FOLDER external)
 
-# Static runtime for GNU-style frontends (MinGW GCC, Clang GNU driver, Linux).
+# --------------------------------------------------------------------------
+# Application.
+# --------------------------------------------------------------------------
+add_executable(IMGuiTool WIN32 IMGuiTool/main.cpp)   # WIN32 -> GUI subsystem / WinMain (ignored off-Windows)
+target_link_libraries(IMGuiTool PRIVATE imgui::imgui)
+target_compile_features(IMGuiTool PRIVATE cxx_std_20)
+
+# Static libstdc++/libgcc for GNU-style frontends (MinGW GCC, Clang GNU driver, Linux GCC/Clang).
 if(IMGUITOOL_STATIC_RUNTIME
    AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
         OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
@@ -95,8 +114,16 @@ if(IMGUITOOL_STATIC_RUNTIME
     # MinGW: link the whole runtime (libstdc++, libgcc, winpthread) statically.
     target_link_options(IMGuiTool PRIVATE -static -static-libgcc -static-libstdc++)
   else()
-    # Linux/Unix: static libstdc++/libgcc only. A full -static breaks against
+    # Linux/Unix: static C++ runtime only; a full -static breaks against
     # X11/Wayland/glibc, so the system C library stays dynamic.
     target_link_options(IMGuiTool PRIVATE -static-libgcc -static-libstdc++)
   endif()
+endif()
+
+# --------------------------------------------------------------------------
+# Install (standalone builds only).
+# --------------------------------------------------------------------------
+if(PROJECT_IS_TOP_LEVEL)
+  include(GNUInstallDirs)
+  install(TARGETS IMGuiTool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
