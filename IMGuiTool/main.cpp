@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "imgui_impl_win32.h"
 #include <GLFW/glfw3.h>
 
 namespace ImGui
@@ -17,7 +18,7 @@ namespace ImGui
 int main()
 {
     // Fix DPI awaareness first
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    ImGui_ImplWin32_EnableDpiAwareness();
 
     // Initialize GLFW
     glfwInit();
