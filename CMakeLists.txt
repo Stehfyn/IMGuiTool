@@ -105,11 +105,26 @@ add_executable(IMGuiTool WIN32 IMGuiTool/main.cpp)   # WIN32 -> GUI subsystem / 
 target_link_libraries(IMGuiTool PRIVATE imgui::imgui)
 target_compile_features(IMGuiTool PRIVATE cxx_std_20)
 
-# Static libstdc++/libgcc for GNU-style frontends (MinGW GCC, Clang GNU driver, Linux GCC/Clang).
-if(IMGUITOOL_STATIC_RUNTIME
-   AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-        OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
-            AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")))
+# GNU-style frontend? (MinGW GCC, Clang GNU driver, Linux GCC/Clang) — excludes MSVC and clang-cl.
+set(_gnu_frontend FALSE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+   OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+       AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"))
+  set(_gnu_frontend TRUE)
+endif()
+
+# MinGW/Clang-GNU on Windows: UNICODE is defined, so the entry point is
+# wWinMain. -municode selects the matching wide CRT startup; without it the
+# MinGW runtime looks for WinMain and the link fails. (MSVC does this auto.)
+if(_gnu_frontend AND WIN32)
+  target_compile_options(IMGuiTool PRIVATE -municode)
+  target_link_options(IMGuiTool PRIVATE -municode)
+endif()
+
+# Static libstdc++/libgcc for GNU-style frontends.
+# (Skipped on Apple: its toolchain uses libc++ with no static-link story, and
+#  -static-libstdc++ is rejected — the system C++ runtime is always dynamic.)
+if(IMGUITOOL_STATIC_RUNTIME AND _gnu_frontend AND NOT APPLE)
   if(WIN32)
     # MinGW: link the whole runtime (libstdc++, libgcc, winpthread) statically.
     target_link_options(IMGuiTool PRIVATE -static -static-libgcc -static-libstdc++)

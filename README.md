@@ -2,47 +2,58 @@
 
 [![CI](https://github.com/Stehfyn/IMGuiTool/actions/workflows/ci.yml/badge.svg)](https://github.com/Stehfyn/IMGuiTool/actions/workflows/ci.yml)
 
-Cross-platform [Dear ImGui](https://github.com/ocornut/imgui) app (GLFW + OpenGL3). Runs on **Windows** and **Linux**. Dependencies are submodules, built from source as static libs. Builds with **MSVC**, **Clang/clang-cl**, **MinGW-w64 GCC** (Windows) or **GCC/Clang** (Linux); CMake is the single source of truth.
+A cross-platform [Dear ImGui](https://github.com/ocornut/imgui) app (GLFW + OpenGL3).
 
-## How to build (CMake)
-Requirements:
-- `CMake` 3.21+ and a generator (`Ninja` recommended; the VS generator also works).
-- `Git` (dependencies are submodules).
-- A compiler: MSVC (`Visual Studio 2026`, Desktop C++), `clang-cl`/`clang`, MinGW-w64 `gcc` (Windows), or `gcc`/`clang` (Linux).
-- **Linux only** — GLFW's build deps:
-  ```bash
-  sudo apt-get update && sudo apt-get install -y \
-    build-essential ninja-build pkg-config \
-    libgl1-mesa-dev xorg-dev libxkbcommon-dev \
-    libwayland-dev wayland-protocols
-  ```
+## Toolchains
 
-The runtime is linked **statically** by default (`/MT` on MSVC/clang-cl, `-static-lib*` on GNU; on Linux the system C library stays dynamic). Disable with `-D IMGUITOOL_STATIC_RUNTIME=OFF`.
+Every row is built in CI on each push.
 
-### Build Steps
-Clone with submodules:
+| Platform | Compilers                  | Build systems   | Presets                              |
+| -------- | -------------------------- | --------------- | ------------------------------------ |
+| Windows  | MSVC, clang-cl, MinGW-w64  | Ninja, MSBuild  | `msvc` `clang-cl` `mingw` `vs`       |
+| Linux    | GCC, Clang                 | Ninja, Make     | `linux-gcc` `linux-clang`            |
+| macOS    | Clang                      | Ninja, Make     | `macos-clang`                        |
+
+---
+
+## Build (CMake ≥ 3.21)
+
 ```bash
 git clone --recursive https://github.com/Stehfyn/IMGuiTool
+cmake --preset <preset>
+cmake --build --preset <preset>-release
 ```
-Or, if already cloned:
-```bash
-cd IMGuiTool
-git submodule update --init --recursive
-```
-Configure and build with a preset. Windows: `msvc`, `clang-cl`, `mingw`, `vs`. Linux: `linux-gcc`, `linux-clang`.
-```bash
-# Windows
-cmake --preset msvc
-cmake --build --preset msvc-release
 
-# Linux
-cmake --preset linux-gcc
-cmake --build --preset linux-gcc-release
-```
-The binary lands in `build/<preset>/<Config>/` (`IMGuiTool.exe` on Windows, `IMGuiTool` on Linux).
+- **Output:** `build/<preset>/<config>/IMGuiTool` (`.exe` on Windows)
+- **Static runtime** by default — opt out with `-D IMGUITOOL_STATIC_RUNTIME=OFF`
 
-Without presets, any generator works the same way:
+### Already cloned, or building without presets
+
 ```bash
-cmake -S . -B build -G Ninja -D CMAKE_BUILD_TYPE=Release
-cmake --build build
+git submodule update --init --recursive               # if you cloned non-recursively
+cmake -S . -B build -G Ninja -D CMAKE_BUILD_TYPE=Release && cmake --build build
 ```
+
+---
+
+## Linux packages (Debian/Ubuntu)
+
+```bash
+scripts/install-deps.sh    # GLFW needs X11/Wayland/OpenGL dev headers
+```
+
+### No apt? (offline, locked-down, embedded)
+
+On any Debian/Ubuntu box with apt, download the `.deb` files:
+
+```bash
+scripts/get-deps.sh        # writes ./debs
+```
+
+Copy `debs/` to the target and install with `dpkg` — no network, repo, or apt needed there:
+
+```bash
+sudo dpkg -i debs/*.deb
+```
+
+On another distro, see `scripts/packages.txt` for the package list.

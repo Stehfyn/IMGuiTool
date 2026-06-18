@@ -6,27 +6,37 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
         include:
           # ---------------- Linux ----------------
-          - { name: linux-gcc-ninja,    os: ubuntu-latest, kind: preset, preset: linux-gcc,   build_preset: linux-gcc-release }
-          - { name: linux-clang-ninja,  os: ubuntu-latest, kind: preset, preset: linux-clang, build_preset: linux-clang-release }
+          - { name: linux-gcc-ninja,    os: ubuntu-latest, kind: preset, preset: linux-gcc }
+          - { name: linux-clang-ninja,  os: ubuntu-latest, kind: preset, preset: linux-clang }
           - { name: linux-gcc-make,     os: ubuntu-latest, kind: raw,    generator: "Unix Makefiles", cc: gcc, cxx: g++ }
           # ---------------- Windows ----------------
-          - { name: windows-msvc-ninja,    os: windows-latest, kind: preset, preset: msvc,     build_preset: msvc-release,     msvc_env: true }
-          - { name: windows-clang-cl-ninja,os: windows-latest, kind: preset, preset: clang-cl, build_preset: clang-cl-release, msvc_env: true }
-          - { name: windows-mingw-ninja,   os: windows-latest, kind: preset, preset: mingw,    build_preset: mingw-release }
-          - { name: windows-msvc-msbuild,  os: windows-latest, kind: raw,    generator: "Visual Studio 17 2022" }
+          - { name: windows-msvc-ninja,    os: windows-latest, kind: preset, preset: msvc,     msvc_env: true }
+          - { name: windows-clang-cl-ninja,os: windows-latest, kind: preset, preset: clang-cl, msvc_env: true }
+          - { name: windows-mingw-ninja,   os: windows-latest, kind: preset, preset: mingw }
+          - { name: windows-msvc-msbuild,  os: windows-2022,   kind: raw,    generator: "Visual Studio 17 2022" }
+          # ---------------- macOS ----------------
+          - { name: macos-clang-ninja, os: macos-latest, kind: preset, preset: macos-clang }
+          - { name: macos-clang-make,  os: macos-latest, kind: raw,    generator: "Unix Makefiles", cc: clang, cxx: clang++ }
 
     steps:
       - name: Checkout (with submodules)
@@ -34,71 +44,83 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Linux dependencies
+      - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
+        env:
+          PRESET: ${{ matrix.preset }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             ninja-build pkg-config \
             libgl1-mesa-dev xorg-dev libxkbcommon-dev \
             libwayland-dev wayland-protocols
-          if [ "${{ matrix.cxx }}" = "clang++" ] || [ "${{ matrix.preset }}" = "linux-clang" ]; then
-            sudo apt-get install -y clang
-          fi
+          [ "$PRESET" = linux-clang ] && sudo apt-get install -y clang || true
 
-      - name: Install Ninja (Windows)
-        if: runner.os == 'Windows' && matrix.kind == 'preset'
-        run: choco install ninja -y --no-progress
+      - name: Install Ninja (Windows / macOS)
+        if: matrix.kind == 'preset' && runner.os != 'Linux'
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then choco install ninja -y --no-progress; else brew install ninja; fi
 
       - name: Set up MSVC environment
-        if: matrix.msvc_env == true
+        if: matrix.msvc_env
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      - name: Configure (preset)
+      - name: Configure & build — Debug + Release (preset)
         if: matrix.kind == 'preset'
-        shell: bash
-        run: cmake --preset ${{ matrix.preset }}
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: |
+          cmake --preset "$PRESET"
+          cmake --build --preset "$PRESET-release"
+          cmake --build --preset "$PRESET-debug"
 
-      - name: Build (preset)
-        if: matrix.kind == 'preset'
-        shell: bash
-        run: cmake --build --preset ${{ matrix.build_preset }}
-
-      - name: Configure (raw)
+      - name: Configure & build — Debug + Release (raw)
         if: matrix.kind == 'raw'
-        shell: bash
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
+          GENERATOR: ${{ matrix.generator }}
         run: |
-          gen="${{ matrix.generator }}"
-          args=(-S . -B build -G "$gen" -D CMAKE_BUILD_TYPE=Release)
-          case "$gen" in "Visual Studio"*) args+=(-A x64) ;; esac
-          cmake "${args[@]}"
+          # Drop empty CC/CXX so CMake auto-detects (the VS generator picks its own).
+          [ -z "${CC:-}" ]  && unset CC  || true
+          [ -z "${CXX:-}" ] && unset CXX || true
+          for cfg in Release Debug; do
+            args=(-S . -B "build-$cfg" -G "$GENERATOR" -D CMAKE_BUILD_TYPE="$cfg")
+            case "$GENERATOR" in "Visual Studio"*) args+=(-A x64) ;; esac
+            cmake "${args[@]}"
+            cmake --build "build-$cfg" --config "$cfg" --parallel
+          done
 
-      - name: Build (raw)
-        if: matrix.kind == 'raw'
-        shell: bash
-        run: cmake --build build --config Release --parallel
-
-      - name: Verify binary exists
-        shell: bash
+      - name: Verify binaries (Debug + Release)
         run: |
-          set -e
-          if [ "${{ runner.os }}" = "Windows" ]; then exe="IMGuiTool.exe"; else exe="IMGuiTool"; fi
-          found=$(find build -name "$exe" -type f | head -1)
-          if [ -z "$found" ]; then echo "::error::$exe not produced"; find build -name 'IMGuiTool*'; exit 1; fi
-          echo "Built: $found"
-          ls -la "$found"
+          [ "$RUNNER_OS" = Windows ] && exe=IMGuiTool.exe || exe=IMGuiTool
+          found=$(find build build-Debug build-Release -name "$exe" -type f 2>/dev/null || true)
+          printf '%s\n' "$found"
+          n=$(printf '%s\n' "$found" | grep -c . || true)
+          [ "$n" -ge 2 ] || { echo "::error::expected Debug and Release $exe, found $n"; exit 1; }
 
-      - name: Upload artifact
+      # upload-artifact zips its inputs and drops the Unix exec bit, so wrap the
+      # binaries in a tar that preserves mode -> extract and they just run.
+      - name: Package binaries
+        run: |
+          [ "$RUNNER_OS" = Windows ] && exe=IMGuiTool.exe || exe=IMGuiTool
+          mkdir -p dist
+          for d in build build-Debug build-Release; do
+            [ -d "$d" ] || continue
+            find "$d" -name "$exe" -type f
+          done | while read -r f; do
+            cfg=$(printf '%s' "$f" | grep -oiE 'debug|release' | head -1 | tr 'A-Z' 'a-z')
+            cp -p "$f" "dist/IMGuiTool-${cfg}${exe#IMGuiTool}"
+          done
+          ls -l dist
+          tar -C dist -czf "IMGuiTool-${{ matrix.name }}.tar.gz" .
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: IMGuiTool-${{ matrix.name }}
-          path: |
-            build/**/IMGuiTool
-            build/**/IMGuiTool.exe
+          path: IMGuiTool-${{ matrix.name }}.tar.gz
           if-no-files-found: error
           retention-days: 7

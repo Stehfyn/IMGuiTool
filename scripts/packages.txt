@@ -1,0 +1,8 @@
+build-essential
+ninja-build
+pkg-config
+libgl1-mesa-dev
+xorg-dev
+libxkbcommon-dev
+libwayland-dev
+wayland-protocols
